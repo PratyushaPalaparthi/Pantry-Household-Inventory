@@ -32,6 +32,13 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+  other: {
+    // Next emits the standard "mobile-web-app-capable" for appleWebApp.capable,
+    // which Safari only began honouring recently. Older iOS still looks for the
+    // apple- prefixed name, and without it "Add to Home Screen" opens the app in
+    // a Safari tab with browser chrome instead of standalone.
+    "apple-mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
