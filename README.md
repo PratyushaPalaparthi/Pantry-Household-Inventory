@@ -12,6 +12,10 @@ A self-hosted, single-user household inventory app: track what's in your home, g
 - **Recharts** for price/spend charts
 - A provider-agnostic AI client (`src/lib/ai/client.ts`) that talks to either **Anthropic's Claude API** or a **local Ollama server**, selected via `AI_PROVIDER`, both through an OpenAI-compatible `/chat/completions` interface
 
+> **New here?** [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) walks through
+> the whole thing end to end — clone, run, reach it over HTTPS, install it on an
+> iPhone, and what it costs to keep running.
+
 ## Running locally
 
 Requirements: Node 22+ (Node 20 is past end-of-life), a local PostgreSQL instance (or `docker run` one, see below), and Docker if you want to test the container build.
