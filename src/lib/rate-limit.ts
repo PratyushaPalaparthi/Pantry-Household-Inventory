@@ -1,6 +1,49 @@
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
+/**
+ * How many reverse proxies sit in front of the app (your own proxy = 1; add one
+ * for a CDN/tunnel in front of it, e.g. Cloudflare + Caddy = 2).
+ */
+const TRUSTED_PROXY_HOPS = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS ?? 1));
+
+const IP_LIKE = /^[0-9a-fA-F:.]{3,45}$/;
+
+/**
+ * Client IP for rate limiting, read from the *trusted* end of X-Forwarded-For.
+ *
+ * This must not use the raw header. XFF is a comma list where each proxy appends
+ * the address it received the request from, so the leftmost entries are whatever
+ * the client sent and are freely forgeable. Keying the limiter on the whole
+ * header let an internet attacker mint a fresh bucket per request — sending a
+ * different XFF each time — which removed the login lockout completely.
+ *
+ * Counting back TRUSTED_PROXY_HOPS entries from the right lands on the address
+ * our own infrastructure observed, which the client cannot influence.
+ */
+export function clientIpFrom(headers: Headers): string {
+  const forwarded = headers.get("x-forwarded-for");
+  if (forwarded) {
+    const hops = forwarded
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (hops.length > 0) {
+      const index = Math.max(0, hops.length - TRUSTED_PROXY_HOPS);
+      const candidate = hops[index];
+      if (candidate && IP_LIKE.test(candidate)) return candidate;
+    }
+  }
+
+  // Set by nginx-style proxies; also single-valued, so not a list to walk.
+  const realIp = headers.get("x-real-ip")?.trim();
+  if (realIp && IP_LIKE.test(realIp)) return realIp;
+
+  // No proxy headers at all — direct access, e.g. localhost during development.
+  return "direct";
+}
+
 type Bucket = { count: number; resetAt: number };
 
 const buckets = new Map<string, Bucket>();

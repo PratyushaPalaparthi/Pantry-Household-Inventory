@@ -19,8 +19,12 @@ services:
     volumes:
       - uploads:/app/storage/uploads
     ports:
-      # Your existing reverse proxy should terminate HTTPS and forward here.
-      - "3000:3000"
+      # Bound to loopback on purpose: only a reverse proxy running on this same
+      # host can reach it, so nobody can hit the app over plain HTTP and bypass
+      # TLS. If your proxy runs on a different machine, change this to
+      # "<this-host-lan-ip>:3000:3000" — never a bare "3000:3000" on a host that
+      # is reachable from the internet.
+      - "127.0.0.1:3000:3000"
 
   db:
     image: postgres:16-alpine

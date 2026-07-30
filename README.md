@@ -123,6 +123,80 @@ To apply schema changes after pulling an update: `docker compose up -d --build` 
 
 Build on the NAS itself (or the same CPU architecture it runs on) so `docker compose build` produces a matching image. If you're building on a different architecture (e.g. an Apple Silicon Mac targeting an x86 NAS), use `docker buildx build --platform linux/amd64` instead of a plain build.
 
+## Exposing it over the internet
+
+The container publishes to `127.0.0.1:3000` only, so nothing is reachable from
+outside until you deliberately put something in front of it. Whatever you choose,
+these four steps are not optional:
+
+1. **Serve it over HTTPS.** Not just for privacy — barcode scanning uses the
+   camera, and browsers only grant camera access on a secure origin (or
+   localhost). Over plain HTTP the scanner silently fails.
+2. **Set `NEXTAUTH_URL` to the exact public origin** (`https://pantry.example.com`).
+   Left as `localhost`, login fails from every other device, because NextAuth
+   builds its callback URLs and decides on `__Secure-` cookies from this value.
+3. **Generate a real `AUTH_SECRET`** — `openssl rand -base64 32`. It signs your
+   session cookies; the placeholder would let anyone forge a session.
+4. **Set `TRUSTED_PROXY_HOPS` to the number of proxies in front of the app**
+   (1 for your own reverse proxy, 2 if a tunnel or CDN sits in front of that).
+   This decides which `X-Forwarded-For` entry the login limiter trusts. Too high
+   and a client can forge its apparent IP to escape the lockout.
+
+Then `docker compose up -d` and change the owner password with
+`docker compose exec app npm run set-password`.
+
+### Option A — Cloudflare Tunnel (recommended for a home network)
+
+No open ports, no dynamic DNS, TLS handled for you, and your home IP is never
+exposed. Add to `docker-compose.yml`:
+
+```yaml
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN}
+    depends_on: [app]
+```
+
+Create the tunnel in the Cloudflare Zero Trust dashboard, point its public
+hostname at `http://app:3000`, and put the token in `.env`. Because Cloudflare
+terminates TLS and your tunnel is the second hop, set `TRUSTED_PROXY_HOPS="2"`.
+
+Worth adding on top: Cloudflare Access, which puts an identity check in front of
+the app so unauthenticated traffic never reaches it at all — good defence in
+depth for a single-user app holding receipts and purchase history.
+
+### Option B — Tailscale (most private)
+
+If only your own devices need access, skip public exposure entirely. Install
+Tailscale on the host and on your phone, then reach the app at
+`http://<tailscale-name>:3000` over the private network. Enable
+[Tailscale HTTPS](https://tailscale.com/kb/1153/enabling-https) to get a real
+certificate, which the camera needs. Nothing is published to the internet, so
+there is no attack surface to harden.
+
+### Option C — Your own reverse proxy + port forward
+
+Only if you already run one and understand the exposure. Terminate TLS with
+Let's Encrypt (Caddy makes this a two-line config), forward to
+`127.0.0.1:3000`, and forward only 443 on the router — never 3000, and never
+Postgres (5432) or Ollama (11434). A minimal Caddyfile:
+
+```
+pantry.example.com {
+    reverse_proxy 127.0.0.1:3000
+}
+```
+
+Caddy sets `X-Forwarded-For` correctly, so `TRUSTED_PROXY_HOPS="1"` is right here.
+
+### What must never be exposed
+
+`db` publishes no ports at all and `ollama` is bound to `127.0.0.1`, both
+deliberately. Publishing Postgres would expose your data directly; publishing
+Ollama would give strangers free use of your models. Only the reverse proxy
+should be reachable.
+
 ## Data export
 
 Settings → Export gives you the full database as JSON (one nested file, most complete) or CSV (a zip with one file per table: items, item_locations, price_history, shopping_list, receipts, receipt_lines). Your data is never locked into this app.

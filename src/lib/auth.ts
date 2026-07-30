@@ -2,7 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { checkLoginRateLimit, resetLoginRateLimit, rateLimitKeyFor } from "@/lib/rate-limit";
+import { checkLoginRateLimit, clientIpFrom, resetLoginRateLimit, rateLimitKeyFor } from "@/lib/rate-limit";
 import { headers } from "next/headers";
 
 export const authOptions: NextAuthOptions = {
@@ -21,7 +21,7 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) return null;
 
-        const ip = (await headers()).get("x-forwarded-for") ?? "local";
+        const ip = clientIpFrom(await headers());
         const rateLimitKey = rateLimitKeyFor(ip, credentials.email);
         const { allowed } = checkLoginRateLimit(rateLimitKey);
         if (!allowed) {
