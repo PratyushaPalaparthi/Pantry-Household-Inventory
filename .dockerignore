@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+storage
+*.tsbuildinfo
+.env
+.env.*.local
+npm-debug.log*
+*.traineddata

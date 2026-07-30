@@ -1,26 +1,132 @@
+/* Tailwind 4: one import replaces the old @tailwind base/components/utilities
+   triple, and content paths are auto-detected (so there is no tailwind.config.ts
+   any more — its only custom colors were unused). */
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #f7f8f6;
+  --surface: #ffffff;
+  --foreground: #1c1f1a;
+  --muted: #6b7280;
+  --border: #e5e7e0;
+  --brand: #2f7a4f;
+  --brand-hover: #26623f;
+  --brand-soft: #e7f3ec;
+  --danger: #dc2626;
+  --danger-soft: #fdecec;
+  --warning: #d97706;
+  --warning-soft: #fef3e0;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #12140f;
+    --surface: #1a1d16;
+    --foreground: #edf0e8;
+    --muted: #9aa093;
+    --border: #2a2e24;
+    --brand: #4ba873;
+    --brand-hover: #5cbc84;
+    --brand-soft: #1c2c22;
+    --danger: #f87171;
+    --danger-soft: #2a1717;
+    --warning: #fbbf24;
+    --warning-soft: #2b2110;
   }
 }
 
+* {
+  border-color: var(--border);
+}
+
 body {
-  background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--background);
+}
+
+@layer components {
+  .card {
+    /* v4 renamed the shadow scale (old shadow-sm is now shadow-xs), so this keeps
+       the original subtle shadow rather than silently getting heavier. */
+    @apply rounded-2xl border shadow-xs;
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  /* Grouped rather than `.btn-primary { @apply btn; }`: v4's @apply only accepts
+     real utilities, not other component classes, so composing that way breaks.
+     v4's preflight also sets buttons to cursor:default, hence cursor-pointer. */
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply text-white;
+    background: var(--brand);
+  }
+  .btn-primary:hover {
+    background: var(--brand-hover);
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+  }
+  .btn-secondary:hover {
+    background: var(--brand-soft);
+  }
+
+  .btn-danger {
+    @apply text-white;
+    background: var(--danger);
+  }
+
+  .input {
+    @apply w-full rounded-xl border bg-transparent px-3.5 py-2.5 text-sm transition-colors outline-none;
+    border-color: var(--border);
+    background: var(--surface);
+  }
+  .input:focus {
+    border-color: var(--brand);
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium;
+    color: var(--muted);
+  }
+
+  .badge,
+  .badge-danger,
+  .badge-warning,
+  .badge-brand {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+
+  .badge-danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  .badge-warning {
+    background: var(--warning-soft);
+    color: var(--warning);
+  }
+
+  .badge-brand {
+    background: var(--brand-soft);
+    color: var(--brand);
+  }
+}
+
+/* v4 exposes custom utilities via @utility instead of @layer utilities. */
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@utility text-muted {
+  color: var(--muted);
 }

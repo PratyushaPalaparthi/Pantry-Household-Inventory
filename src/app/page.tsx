@@ -1,65 +1,131 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Package, AlertTriangle, DollarSign, Clock, Copy } from "lucide-react";
+import { getUserId } from "@/lib/session";
+import { formatCalendarDate } from "@/lib/dates";
+import { getDashboardData } from "@/lib/dashboard";
+import { CategorySpendChart } from "@/components/CategorySpendChart";
+import { NaturalLanguageBar } from "@/components/NaturalLanguageBar";
+import { totalQuantity } from "@/lib/inventory";
 
-export default function Home() {
+function StatTile({ icon: Icon, label, value, danger }: { icon: typeof Package; label: string; value: string | number; danger?: boolean }) {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="card p-4">
+      <div className="mb-2 flex items-center gap-2 text-xs text-muted">
+        <Icon size={14} /> {label}
+      </div>
+      <p className="text-2xl font-semibold" style={danger ? { color: "var(--danger)" } : undefined}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+export default async function Home() {
+  const userId = await getUserId();
+  if (!userId) return null;
+
+  const data = await getDashboardData(userId);
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold">Dashboard</h1>
+
+      <NaturalLanguageBar />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatTile icon={Package} label="Items tracked" value={data.totalItems} />
+        <StatTile icon={AlertTriangle} label="Low stock" value={data.lowStockCount} danger={data.lowStockCount > 0} />
+        <StatTile icon={DollarSign} label="This month's spend" value={`$${data.monthlySpend.toFixed(2)}`} />
+        <StatTile icon={Clock} label="Expiring soon" value={data.expiringItems.length} danger={data.expiringItems.length > 0} />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="card p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-medium">Low stock</h2>
+            <Link href="/shopping" className="text-xs" style={{ color: "var(--brand)" }}>
+              View shopping list
+            </Link>
+          </div>
+          {data.lowStockItems.length === 0 ? (
+            <p className="text-sm text-muted">Nothing running low.</p>
+          ) : (
+            <ul className="space-y-2">
+              {data.lowStockItems.map((item) => (
+                <li key={item.id}>
+                  <Link href={`/inventory/${item.id}`} className="flex items-center justify-between text-sm">
+                    <span>{item.name}</span>
+                    <span style={{ color: "var(--danger)" }}>
+                      {totalQuantity(item.locations)} / {item.lowStockThreshold} {item.unitOfMeasure}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="card p-5">
+          <h2 className="mb-3 font-medium">Expiring soon</h2>
+          {data.expiringItems.length === 0 ? (
+            <p className="text-sm text-muted">Nothing expiring in the next 7 days.</p>
+          ) : (
+            <ul className="space-y-2">
+              {data.expiringItems.map((item) => (
+                <li key={item.id}>
+                  <Link href={`/inventory/${item.id}`} className="flex items-center justify-between text-sm">
+                    <span>{item.name}</span>
+                    <span className="text-muted">{item.expirationDate ? formatCalendarDate(item.expirationDate) : null}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      </main>
+      </div>
+
+      <div className="card p-5">
+        <h2 className="mb-3 font-medium">Spending by category</h2>
+        <CategorySpendChart data={data.spendByCategory} categories={[...data.topCategories, "Other"]} />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="card p-5">
+          <h2 className="mb-3 font-medium">Most active items</h2>
+          <p className="mb-2 text-xs text-muted">Restocked or used most in the last 30 days</p>
+          {data.mostActiveItems.length === 0 ? (
+            <p className="text-sm text-muted">No activity logged yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {data.mostActiveItems.map((item) => (
+                <li key={item.name} className="flex items-center justify-between text-sm">
+                  <span>{item.name}</span>
+                  <span className="text-muted">{item.count}x</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="card p-5">
+          <div className="mb-3 flex items-center gap-1.5">
+            <Copy size={15} />
+            <h2 className="font-medium">Possible duplicates</h2>
+          </div>
+          {data.duplicateGroups.length === 0 ? (
+            <p className="text-sm text-muted">No likely duplicates found.</p>
+          ) : (
+            <ul className="space-y-2">
+              {data.duplicateGroups.map((g, i) => (
+                <li key={i} className="text-sm">
+                  <span className="font-medium">{g.a}</span> <span className="text-muted">looks similar to</span>{" "}
+                  <span className="font-medium">{g.b}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

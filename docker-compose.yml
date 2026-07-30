@@ -1,0 +1,95 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      # Overrides the .env value (which points at "localhost" for local dev)
+      # so the app container reaches Postgres via the compose network.
+      DATABASE_URL: "postgresql://inventory:${POSTGRES_PASSWORD}@db:5432/inventory?schema=public"
+      UPLOAD_DIR: "/app/storage/uploads"
+      # Same reason: inside the compose network Ollama is "ollama", not localhost.
+      AI_OLLAMA_BASE_URL: "http://ollama:11434/v1"
+    volumes:
+      - uploads:/app/storage/uploads
+    ports:
+      # Your existing reverse proxy should terminate HTTPS and forward here.
+      - "3000:3000"
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: inventory
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Local LLM server. Nothing is installed on the host and no inventory or
+  # receipt data leaves this machine.
+  #
+  # Note: containers get no access to an Apple Silicon GPU (and typically none
+  # on a NAS either), so inference here is CPU-only. That's why the default
+  # models are small — see AI_OLLAMA_MODEL in .env.example for how to trade
+  # speed for quality.
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      # Published so `npm run dev` on the host can use the same models as the
+      # container. Bound to loopback so it isn't exposed to your network.
+      - "127.0.0.1:11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+    # Uncomment on a Linux host with an NVIDIA GPU for a large speedup:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # One-shot: downloads the models into the ollama volume, then exits. The app
+  # waits for this to finish, so the AI features work on first boot rather than
+  # failing until someone remembers to pull a model by hand. Re-running compose
+  # is cheap — an already-present model is a no-op.
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: "http://ollama:11434"
+      TEXT_MODEL: "${AI_OLLAMA_MODEL:-qwen2.5:7b}"
+      VISION_MODEL: "${AI_OLLAMA_VISION_MODEL:-llava:7b}"
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      'echo "Pulling text model $$TEXT_MODEL ..." &&
+       ollama pull "$$TEXT_MODEL" &&
+       echo "Pulling vision model $$VISION_MODEL ..." &&
+       ollama pull "$$VISION_MODEL" &&
+       echo "Models ready:" && ollama list'
+    restart: "no"
+
+volumes:
+  db-data:
+  uploads:
+  ollama-models:
