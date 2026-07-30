@@ -153,12 +153,54 @@ there is no attack surface to defend.
    docker compose up -d
    ```
 
-### Cloudflare Tunnel — a real public URL
+### Cloudflare Tunnel — a real public URL, nothing installed on the host
 
-Use this only if other people need access. It puts your login page in front of
-the entire internet, where it will be scanned constantly. Requires your own
-domain (~$10–15/year). See the "Exposing it over the internet" section of the
-main README, and set `TRUSTED_PROXY_HOPS="2"` because Cloudflare adds a hop.
+Runs as a container alongside the app. The tunnel dials *out* to Cloudflare, so
+no router port is opened and your home IP is never published. Use this if people
+other than you need access, or you want a normal-looking web address.
+
+You need a domain name (~$10-15/year) added to a Cloudflare account. The free
+Cloudflare plan is fine.
+
+1. In the [Zero Trust dashboard](https://one.dash.cloudflare.com) go to
+   **Networks → Tunnels → Create a tunnel**, choose **Cloudflared**, and name it.
+2. Cloudflare shows an install command containing a long token. Copy just the
+   token and put it in `.env`:
+
+   ```
+   CF_TUNNEL_TOKEN="eyJhIjoiO..."
+   ```
+
+3. Still in the dashboard, add a **Public hostname** for the tunnel:
+   - *Subdomain* `pantry`, *Domain* your domain
+   - *Service*: **HTTP** → `app:3000`
+
+   `app:3000` is the container's name on the compose network. This is why the
+   tunnel reaches the app even though it is bound to loopback and unreachable
+   from outside the machine.
+
+4. Update the rest of `.env`:
+
+   ```
+   NEXTAUTH_URL="https://pantry.yourdomain.com"
+   TRUSTED_PROXY_HOPS="2"
+   ```
+
+   `2` because Cloudflare adds a hop on top of the tunnel. Getting this wrong
+   lets a client forge its apparent IP and slip past the login lockout.
+
+5. Start it:
+
+   ```bash
+   docker compose --profile tunnel up -d
+   ```
+
+The tunnel only runs when you ask for that profile, so an ordinary
+`docker compose up -d` still starts just the app without it.
+
+Because this puts your login page in front of the whole internet, consider adding
+**Cloudflare Access** (also free) on top — it demands an identity check before
+traffic ever reaches the app.
 
 ---
 

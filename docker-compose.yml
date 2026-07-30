@@ -26,6 +26,26 @@ services:
       # is reachable from the internet.
       - "127.0.0.1:3000:3000"
 
+  # Publishes the app on a real HTTPS URL without opening a router port, exposing
+  # your home IP, or installing anything on the host. Opt-in:
+  #
+  #   docker compose --profile tunnel up -d
+  #
+  # Reaches the app over the compose network, so it works even though the app is
+  # bound to loopback and unreachable from outside this machine.
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    depends_on: [app]
+    # Plain interpolation with an empty default, NOT the ${VAR:?err} form:
+    # Compose interpolates every service even when its profile is inactive, so
+    # a required-variable marker here would break the ordinary
+    # `docker compose up -d` for everyone not using the tunnel.
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN:-}
+    # No ports: the tunnel dials out to Cloudflare, so nothing needs to be
+    # reachable from the internet — that is the whole point of this approach.
+
   db:
     image: postgres:16-alpine
     restart: unless-stopped
