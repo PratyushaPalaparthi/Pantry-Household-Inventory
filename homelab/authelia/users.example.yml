@@ -1,0 +1,16 @@
+# Copy to users.yml and edit. users.yml is git-ignored because it holds
+# password hashes.
+#
+# Generate a hash for a new password:
+#   docker run --rm authelia/authelia:4.39 \
+#     authelia crypto hash generate argon2 --password 'your-password'
+
+users:
+  surya:
+    disabled: false
+    displayname: "Surya"
+    # argon2id hash — never the password itself.
+    password: "$argon2id$v=19$m=65536,t=3,p=4$REPLACE$WITH_YOUR_OWN_HASH"
+    email: suryaprakashrokz@gmail.com
+    groups:
+      - admins

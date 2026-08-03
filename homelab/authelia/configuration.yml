@@ -1,0 +1,78 @@
+# Authelia: the single sign-on server.
+#
+# It sits behind Traefik and answers one question per request — "is this caller
+# signed in?" — which is what lets a Next.js app, a FastAPI app, and an Express
+# app share one login without any of them knowing about the others.
+
+theme: dark
+
+server:
+  address: "tcp://0.0.0.0:9091"
+
+log:
+  level: info
+
+authentication_backend:
+  # A flat file rather than LDAP: this is a personal deployment with a handful
+  # of accounts, and running a directory server for that would be far more
+  # moving parts than the problem needs.
+  file:
+    path: /config/users.yml
+    watch: true
+    password:
+      algorithm: argon2
+      argon2:
+        variant: argon2id
+        iterations: 3
+        memory: 65536
+        parallelism: 4
+
+access_control:
+  # Deny by default, then open up explicitly. The order matters — the first
+  # matching rule wins — so the bypass for Authelia's own endpoints comes first.
+  default_policy: deny
+  rules:
+    - domain: "auth.home.localhost"
+      policy: bypass
+
+    - domain:
+        - "home.localhost"
+        - "pantry.home.localhost"
+        - "photos.home.localhost"
+      policy: one_factor
+
+session:
+  # The cookie is issued for the parent domain, which is precisely why signing
+  # in once at any subdomain carries across all of them.
+  cookies:
+    - name: authelia_session
+      domain: home.localhost
+      authelia_url: https://auth.home.localhost
+      default_redirection_url: https://home.localhost
+      expiration: 12h
+      inactivity: 2h
+      remember_me: 1M
+
+storage:
+  # SQLite is sufficient here: this stores sessions and 2FA devices, not app
+  # data, and there is exactly one Authelia instance.
+  local:
+    path: /config/db.sqlite3
+
+notifier:
+  # Password-reset and verification emails are written to a file rather than
+  # sent. Nothing here needs a mail server, and this keeps setup to zero config.
+  filesystem:
+    filename: /config/notification.txt
+
+identity_validation:
+  reset_password:
+    # Supplied via AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET.
+    jwt_lifespan: 5m
+
+regulation:
+  # Brute-force protection on the login itself, which now guards every app at
+  # once instead of each app rolling its own.
+  max_retries: 5
+  find_time: 2m
+  ban_time: 5m

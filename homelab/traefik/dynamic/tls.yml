@@ -1,0 +1,12 @@
+# Local development certificate. In production, swap this for a real
+# certificate (Let's Encrypt via a certResolver, or one your proxy already has)
+# so browsers do not show a warning.
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/traefik/certs/local-cert.pem
+        keyFile: /etc/traefik/certs/local-key.pem
+  certificates:
+    - certFile: /etc/traefik/certs/local-cert.pem
+      keyFile: /etc/traefik/certs/local-key.pem

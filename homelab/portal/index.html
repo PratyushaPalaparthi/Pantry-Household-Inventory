@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Home</title>
+    <meta name="theme-color" content="#2f7a4f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Home" />
+    <link rel="stylesheet" href="/theme.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/">🏡 Home</a>
+      <nav>
+        <a class="navlink" href="/" aria-current="page">Apps</a>
+        <a class="navlink" href="/settings.html">Settings</a>
+      </nav>
+    </header>
+
+    <div class="wrap">
+      <h1>Your apps</h1>
+      <p class="sub">Signed in once — everything below is already unlocked.</p>
+
+      <!-- Adding an app: a card here, a router in traefik/dynamic/routes.yml,
+           and its hostname in authelia/configuration.yml. -->
+      <div class="grid" id="apps"></div>
+
+      <footer>
+        <span id="who">Protected by single sign-on.</span>
+        <a href="#" onclick="signOut(event)">Sign out</a>
+      </footer>
+    </div>
+
+    <nav class="tabbar">
+      <a href="/" aria-current="page"><span>▦</span>Apps</a>
+      <a href="/settings.html"><span>⚙</span>Settings</a>
+    </nav>
+
+    <script src="/apps.js"></script>
+    <script>
+      // One list drives both the home page and settings, so an app can never
+      // appear in one and be forgotten in the other.
+      document.getElementById("apps").innerHTML = APPS.map(
+        (a) => `
+        <a class="card" href="${a.url}">
+          <div class="icon">${a.icon}</div>
+          <div class="name">${a.name}</div>
+          <p class="desc">${a.description}</p>
+        </a>`
+      ).join("");
+
+      // Authelia knows who is signed in; ask it rather than duplicating a
+      // session store in the portal.
+      fetch("/api/verify", { credentials: "include" })
+        .then((r) => (r.ok ? r.text() : null))
+        .then((user) => {
+          if (user) document.getElementById("who").textContent = `Signed in as ${user}`;
+        })
+        .catch(() => {});
+    </script>
+  </body>
+</html>

@@ -1,0 +1,104 @@
+# Routing for every app, kept here rather than in container labels so that
+# adding an app never requires editing that app's repository.
+#
+# Hostnames are written out literally rather than templated.
+#
+# Careful here: Traefik runs this whole file through Go templating, comments
+# included. A stray template action anywhere in this file -- even inside a
+# comment about templating -- fails the entire config and every route 404s.
+#
+# Going to production: replace every ".localhost" with your real domain
+# (scripts/set-domain.sh does this), then update authelia/configuration.yml and
+# portal/index.html to match.
+#
+# To add an app: give it a router + service below, list its hostname in
+# authelia/configuration.yml, and add a card to portal/index.html.
+
+http:
+  middlewares:
+    # The heart of single sign-on. Traefik pauses each request and asks Authelia
+    # "is this caller signed in?". If not, the caller is bounced to the one
+    # login page. If yes, the app is told who they are via the Remote-* headers.
+    authelia:
+      forwardAuth:
+        address: "http://authelia:9091/api/authz/forward-auth"
+        trustForwardHeader: true
+        authResponseHeaders:
+          - "Remote-User"
+          - "Remote-Name"
+          - "Remote-Email"
+          - "Remote-Groups"
+
+    security-headers:
+      headers:
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+
+  routers:
+    # Authelia's own login page must NOT sit behind the auth check, or signing
+    # in would require already being signed in.
+    authelia:
+      rule: "Host(`auth.home.localhost`)"
+      entryPoints: [websecure]
+      service: authelia
+      tls: {}
+
+    # Higher priority than the portal router so these paths win. Deliberately
+    # NOT behind the authelia middleware: /api/verify IS the session check, and
+    # /logout must work even when the session is already gone.
+    portal-auth:
+      rule: "Host(`home.localhost`) && (PathPrefix(`/api/`) || PathPrefix(`/logout`))"
+      priority: 100
+      entryPoints: [websecure]
+      service: authelia
+      tls: {}
+
+    portal:
+      rule: "Host(`home.localhost`)"
+      entryPoints: [websecure]
+      middlewares: [authelia, security-headers]
+      service: portal
+      tls: {}
+
+    pantry:
+      rule: "Host(`pantry.home.localhost`)"
+      entryPoints: [websecure]
+      middlewares: [authelia, security-headers]
+      service: pantry
+      tls: {}
+
+    photos:
+      rule: "Host(`photos.home.localhost`)"
+      entryPoints: [websecure]
+      middlewares: [authelia, security-headers]
+      service: photos
+      tls: {}
+
+
+  services:
+    # Via the theming layer, which injects the stylesheet and forwards
+    # everything else to Authelia untouched.
+    authelia:
+      loadBalancer:
+        servers:
+          - url: "http://authelia-theme:80"
+
+    portal:
+      loadBalancer:
+        servers:
+          - url: "http://portal:80"
+
+    # Each app is reached by its container name on the shared "edge" network, so
+    # none of them publish a host port. That also means an app is only ever
+    # reachable through the proxy, never directly.
+    pantry:
+      loadBalancer:
+        servers:
+          - url: "http://pantry-app:3000"
+
+    photos:
+      loadBalancer:
+        servers:
+          - url: "http://photovault-frontend:80"
+

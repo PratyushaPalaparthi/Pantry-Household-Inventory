@@ -1,0 +1,297 @@
+/*
+ * The shared design system.
+ *
+ * Every app on this domain links this one file, so changing a colour here
+ * changes it everywhere at once. That is the whole point: without a single
+ * source of truth, five apps drift into five different greens and the SSO
+ * illusion of "one product" falls apart the moment you click a card.
+ *
+ * Served at https://<domain>/theme.css by the portal container.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces */
+  --bg: #12140f;
+  --surface: #1a1d18;
+  --surface-hover: #21251e;
+  --border: #2b3027;
+
+  /* Text */
+  --text: #edf0e8;
+  --muted: #8f9a88;
+
+  /* Brand + status. Kept few on purpose — a bigger palette is harder to
+     apply consistently across apps than it is to design. */
+  --brand: #6cc08a;
+  --brand-strong: #2f7a4f;
+  --brand-soft: #1e2f24;
+  --danger: #f2777a;
+  --danger-soft: #2e1c1d;
+  --warning: #e0a458;
+  --warning-soft: #2e2418;
+
+  /* Shape and motion */
+  --radius: 0.9rem;
+  --radius-sm: 0.55rem;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.28), 0 8px 24px rgb(0 0 0 / 0.16);
+  --transition: 0.15s ease;
+
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f7f8f5;
+    --surface: #ffffff;
+    --surface-hover: #f2f5ef;
+    --border: #e0e5db;
+    --text: #1b1f18;
+    --muted: #5f6b59;
+    --brand: #2f7a4f;
+    --brand-strong: #245f3e;
+    --brand-soft: #e8f2ea;
+    --danger: #b3261e;
+    --danger-soft: #fbeceb;
+    --warning: #8a5a12;
+    --warning-soft: #fdf3e3;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.06);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Layout ---------------------------------------------------------- */
+
+.wrap {
+  max-width: 64rem;
+  margin: 0 auto;
+  /* Bottom padding clears the mobile tab bar so the last row is never
+     trapped underneath it. */
+  padding: 1.5rem 1.25rem 6rem;
+}
+
+@media (min-width: 768px) {
+  .wrap { padding: 2.5rem 1.5rem 3rem; }
+}
+
+/* ---- Top bar --------------------------------------------------------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: none;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.85rem 1.5rem;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 768px) { .topbar { display: flex; } }
+
+.brand {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.topbar nav { display: flex; gap: 0.35rem; margin-left: auto; }
+
+.navlink {
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background var(--transition), color var(--transition);
+}
+.navlink:hover { background: var(--surface-hover); color: var(--text); }
+.navlink[aria-current="page"] { background: var(--brand-soft); color: var(--brand); }
+
+/* Mobile tab bar — the same links, thumb-reachable. */
+.tabbar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 40;
+  display: flex;
+  justify-content: space-around;
+  padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border);
+}
+@media (min-width: 768px) { .tabbar { display: none; } }
+
+.tabbar a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.3rem 0.6rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.7rem;
+}
+.tabbar a[aria-current="page"] { color: var(--brand); }
+
+/* ---- Typography ------------------------------------------------------ */
+
+h1 { font-size: 1.75rem; font-weight: 600; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.75rem; }
+.sub { color: var(--muted); font-size: 0.95rem; margin: 0 0 2rem; }
+
+/* ---- Cards ----------------------------------------------------------- */
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+a.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--transition), border-color var(--transition), transform var(--transition);
+}
+a.card:hover {
+  background: var(--surface-hover);
+  border-color: var(--brand);
+  transform: translateY(-2px);
+}
+
+.icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--brand-soft);
+  font-size: 1.25rem;
+}
+
+.name { font-weight: 600; font-size: 1.02rem; }
+.desc { color: var(--muted); font-size: 0.875rem; line-height: 1.45; margin: 0; }
+
+/* ---- Rows (settings) ------------------------------------------------- */
+
+.rows { display: flex; flex-direction: column; }
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.row:last-child { border-bottom: 0; padding-bottom: 0; }
+.row:first-child { padding-top: 0; }
+
+.row-label { font-size: 0.9rem; }
+.row-hint { color: var(--muted); font-size: 0.8rem; margin: 0.15rem 0 0; line-height: 1.4; }
+.row-value { color: var(--muted); font-size: 0.875rem; text-align: right; flex-shrink: 0; }
+
+/* ---- Controls -------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+.btn:hover { background: var(--surface-hover); border-color: var(--brand); }
+
+.btn-primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #08120c;
+  font-weight: 500;
+}
+.btn-primary:hover { background: var(--brand-strong); border-color: var(--brand-strong); color: #fff; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.badge-ok { background: var(--brand-soft); border-color: transparent; color: var(--brand); }
+.badge-warn { background: var(--warning-soft); border-color: transparent; color: var(--warning); }
+.badge-down { background: var(--danger-soft); border-color: transparent; color: var(--danger); }
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--brand-soft);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.3rem;
+}
+
+/* ---- Sections -------------------------------------------------------- */
+
+.section { margin-bottom: 1.5rem; }
+.section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 0.6rem 0.15rem;
+}
+
+footer {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+footer a { color: var(--brand); text-decoration: none; }
+footer a:hover { text-decoration: underline; }

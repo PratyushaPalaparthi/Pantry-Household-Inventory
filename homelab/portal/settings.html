@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Settings</title>
+    <meta name="theme-color" content="#2f7a4f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="stylesheet" href="/theme.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/">🏡 Home</a>
+      <nav>
+        <a class="navlink" href="/">Apps</a>
+        <a class="navlink" href="/settings.html" aria-current="page">Settings</a>
+      </nav>
+    </header>
+
+    <div class="wrap">
+      <h1>Settings</h1>
+      <p class="sub">Your account, and the settings for every app in one place.</p>
+
+      <div class="section">
+        <p class="section-title">Account</p>
+        <div class="card rows">
+          <div class="row">
+            <div>
+              <div class="row-label">Signed in as</div>
+              <p class="row-hint">One login covers every app on this domain.</p>
+            </div>
+            <div class="row-value" id="who">…</div>
+          </div>
+          <div class="row">
+            <div>
+              <div class="row-label">Password</div>
+              <p class="row-hint">Changing it signs you out of every app at once.</p>
+            </div>
+            <a class="btn" id="pw-link" href="#">Change</a>
+          </div>
+          <div class="row">
+            <div>
+              <div class="row-label">Sign out</div>
+              <p class="row-hint">Ends the shared session everywhere.</p>
+            </div>
+            <a class="btn" href="#" onclick="signOut(event)">Sign out</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <p class="section-title">Apps</p>
+        <div id="app-settings"></div>
+      </div>
+
+      <div class="section">
+        <p class="section-title">This install</p>
+        <div class="card rows">
+          <div class="row">
+            <div>
+              <div class="row-label">Domain</div>
+              <p class="row-hint">Every app is a subdomain of this.</p>
+            </div>
+            <div class="row-value"><code id="domain">…</code></div>
+          </div>
+          <div class="row">
+            <div>
+              <div class="row-label">Add to your phone</div>
+              <p class="row-hint">In Safari: Share → Add to Home Screen. Works for each app too.</p>
+            </div>
+            <div class="row-value" id="standalone">—</div>
+          </div>
+          <div class="row">
+            <div>
+              <div class="row-label">Adding another app</div>
+              <p class="row-hint">
+                A card in <code>portal/apps.js</code>, a router in <code>traefik/dynamic/routes.yml</code>, its hostname
+                in <code>authelia/configuration.yml</code>, and a service in <code>docker-compose.yml</code>.
+              </p>
+            </div>
+            <div class="row-value"></div>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <span>Single sign-on via Authelia.</span>
+        <a href="/">Back to apps</a>
+      </footer>
+    </div>
+
+    <nav class="tabbar">
+      <a href="/"><span>▦</span>Apps</a>
+      <a href="/settings.html" aria-current="page"><span>⚙</span>Settings</a>
+    </nav>
+
+    <script src="/apps.js"></script>
+    <script>
+      document.getElementById("domain").textContent = DOMAIN;
+      document.getElementById("pw-link").href = `${location.protocol}//auth.${DOMAIN}/`;
+      document.getElementById("standalone").textContent =
+        window.matchMedia("(display-mode: standalone)").matches ? "Installed" : "Not installed";
+
+      // Each app gets its own card listing the settings it owns. Deep links
+      // rather than a re-implementation: the app remains the authority on its
+      // own configuration, so nothing here can drift out of date.
+      document.getElementById("app-settings").innerHTML = APPS.map(
+        (a) => `
+        <div class="card rows" style="margin-bottom:1rem">
+          <div class="row">
+            <div style="display:flex;align-items:center;gap:.75rem">
+              <div class="icon">${a.icon}</div>
+              <div>
+                <div class="row-label" style="font-weight:600">${a.name}</div>
+                <p class="row-hint">${a.host}</p>
+              </div>
+            </div>
+            <span class="badge" id="status-${a.id}">checking…</span>
+          </div>
+          ${a.settings
+            .map(
+              (s) => `
+          <div class="row">
+            <div><div class="row-label">${s.label}</div></div>
+            <a class="btn" href="${s.href}">Open</a>
+          </div>`
+            )
+            .join("")}
+        </div>`
+      ).join("");
+
+      // Live reachability per app. A card that silently links to a dead service
+      // is worse than one that says so.
+      APPS.forEach((a) => {
+        const el = document.getElementById(`status-${a.id}`);
+        fetch(a.url, { mode: "no-cors", cache: "no-store" })
+          .then(() => {
+            el.textContent = "running";
+            el.className = "badge badge-ok";
+          })
+          .catch(() => {
+            el.textContent = "unreachable";
+            el.className = "badge badge-down";
+          });
+      });
+
+      fetch("/api/verify", { credentials: "include" })
+        .then((r) => (r.ok ? r.text() : null))
+        .then((u) => {
+          if (u) document.getElementById("who").textContent = u;
+        })
+        .catch(() => {});
+    </script>
+  </body>
+</html>

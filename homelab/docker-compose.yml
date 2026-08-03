@@ -1,0 +1,262 @@
+# The shared front door for every app: one entry point, one login, one home page.
+#
+# Each app keeps its own repository, database, and compose file. This stack only
+# adds the layer in front of them, so any app can still be developed and run on
+# its own exactly as before.
+
+services:
+  # Single entry point. Routes by hostname and asks Authelia whether the caller
+  # is signed in before anything reaches an app.
+  traefik:
+    image: traefik:v3.3
+    restart: unless-stopped
+    command:
+      # File provider only. All routing lives in ./traefik/dynamic, so wiring an
+      # app in never means editing its repository — and, just as importantly,
+      # Traefik needs no access to the Docker socket. Handing a public-facing
+      # proxy the socket is effectively giving it root on the host.
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--api.dashboard=false"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./traefik/certs:/etc/traefik/certs:ro
+    networks:
+      - edge
+
+  # The identity server. Every request is checked here first, which is what
+  # gives one login across apps written in different languages — none of them
+  # need to understand the others' auth.
+  authelia:
+    image: authelia/authelia:4.39
+    restart: unless-stopped
+    volumes:
+      - ./authelia:/config
+    environment:
+      X_AUTHELIA_CONFIG: /config/configuration.yml
+      # Kept out of configuration.yml so that file stays safe to commit; the
+      # values live in .env, which is git-ignored.
+      AUTHELIA_SESSION_SECRET: ${AUTHELIA_SESSION_SECRET:?generate with openssl rand -hex 32}
+      AUTHELIA_STORAGE_ENCRYPTION_KEY: ${AUTHELIA_STORAGE_ENCRYPTION_KEY:?generate with openssl rand -hex 32}
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET: ${AUTHELIA_JWT_SECRET:?generate with openssl rand -hex 32}
+    networks:
+      - edge
+    healthcheck:
+      # Hit the health endpoint rather than an `authelia health` subcommand —
+      # that subcommand does not exist, so it reported unhealthy while the
+      # service was serving traffic perfectly well.
+      test: ["CMD", "wget", "-qO-", "http://localhost:9091/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Passes Authelia's login page through nginx to inject one stylesheet, so the
+  # first screen anyone sees matches the apps behind it. Authelia 4.39 offers no
+  # supported hook for this — see authelia/theme/nginx.conf.
+  authelia-theme:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on: [authelia]
+    volumes:
+      - ./authelia/theme/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./authelia/theme:/usr/share/nginx/theme:ro
+    networks: [edge]
+
+  # The landing page listing every app. Static on purpose: it holds no data and
+  # has no login of its own, so there is nothing here to break or to attack.
+  portal:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - ./portal:/usr/share/nginx/html:ro
+    networks:
+      - edge
+
+  # Publishes everything on a real HTTPS URL with no router port opened and no
+  # certificate to manage — Cloudflare terminates TLS at its edge and the tunnel
+  # dials outward. This is also what makes the apps reachable from a phone.
+  #
+  #   docker compose --profile tunnel up -d
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    depends_on: [traefik]
+    # Plain interpolation with an empty default, not ${VAR:?err}: Compose
+    # interpolates every service even when its profile is inactive, so the
+    # strict form would break the ordinary `docker compose up -d`.
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN:-}
+    networks: [edge]
+
+  # ---- Applications -------------------------------------------------------
+  # Each keeps its own repository and database. They are listed here only so
+  # one command starts the whole system; nothing about them is merged.
+
+  pantry-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: inventory
+    volumes:
+      - pantry-db:/var/lib/postgresql/data
+    networks: [edge]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pantry-app:
+    build: ./apps/pantry
+    # Fixed name because Traefik routes to it by hostname on the edge network.
+    container_name: pantry-app
+    restart: unless-stopped
+    depends_on:
+      pantry-db:
+        condition: service_healthy
+    env_file: [./apps/pantry/.env]
+    environment:
+      DATABASE_URL: "postgresql://inventory:${POSTGRES_PASSWORD}@pantry-db:5432/inventory?schema=public"
+      UPLOAD_DIR: "/app/storage/uploads"
+      AI_PROVIDER: "${AI_PROVIDER:-ollama}"
+      AI_OLLAMA_BASE_URL: "http://ollama:11434/v1"
+      # Accept the identity Authelia already established, so there is one login
+      # for the whole site rather than one per app. Only safe because this
+      # container publishes no port and is reachable solely through Traefik.
+      TRUST_PROXY_AUTH: "true"
+      # Shows an "All apps" link back to the launcher. Unset when running
+      # standalone, where there is no launcher to return to.
+      NEXT_PUBLIC_PORTAL_URL: "https://${DOMAIN:-home.localhost}"
+    volumes:
+      - pantry-uploads:/app/storage/uploads
+    networks: [edge]
+
+  # Local model server for Pantry's receipt parsing and photo recognition.
+  # Opt-in: it pulls ~9.4 GB of models, which is a lot to impose on someone who
+  # only wants the rest of the stack running.
+  #
+  #   docker compose --profile ai up -d
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    profiles: ["ai"]
+    volumes:
+      - ollama-models:/root/.ollama
+    networks: [edge]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  # ---- PhotoVault ---------------------------------------------------------
+  # Its frontend nginx proxies /api, /media and /thumbnails to "backend:8000",
+  # so those services share a private network where that name resolves. Only
+  # the frontend joins "edge", which means the database, Redis and the workers
+  # are unreachable from the proxy — and therefore from the internet.
+
+  photovault-db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: photovault
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: photovault
+    volumes:
+      - photovault-db:/var/lib/postgresql/data
+    networks: [photovault]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U photovault"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  photovault-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - photovault-redis:/data
+    networks: [photovault]
+
+  photovault-backend:
+    build: ./apps/photovault/backend
+    restart: unless-stopped
+    depends_on:
+      photovault-db:
+        condition: service_healthy
+    environment: &photovault-env
+      DATABASE_URL: "postgresql+asyncpg://photovault:${POSTGRES_PASSWORD}@photovault-db:5432/photovault"
+      REDIS_URL: "redis://photovault-redis:6379/0"
+      SECRET_KEY: "${AUTH_SECRET}"
+      JWT_ALGORITHM: HS256
+      EMAIL_VERIFICATION_REQUIRED: "false"
+      LOCAL_STORAGE_PATH: /media
+      NAS_MOUNT_PATH: /nas
+    volumes: &photovault-vols
+      - photovault-media:/media
+      - photovault-thumbs:/thumbnails
+      - photovault-models:/models
+    networks:
+      photovault:
+        # The frontend's nginx.conf hard-codes "backend:8000", so that name has
+        # to resolve regardless of what the service is called here.
+        aliases: [backend]
+
+  photovault-worker:
+    build: ./apps/photovault/backend
+    restart: unless-stopped
+    command: celery -A app.workers.celery_app worker --loglevel=info
+    depends_on: [photovault-backend]
+    environment: *photovault-env
+    volumes: *photovault-vols
+    networks: [photovault]
+
+  photovault-beat:
+    build: ./apps/photovault/backend
+    restart: unless-stopped
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    depends_on: [photovault-backend]
+    environment: *photovault-env
+    volumes: *photovault-vols
+    networks: [photovault]
+
+  photovault-frontend:
+    build: ./apps/photovault/frontend
+    container_name: photovault-frontend
+    restart: unless-stopped
+    depends_on: [photovault-backend]
+    # The only PhotoVault service on "edge", so it is the only one the proxy
+    # can reach.
+    networks: [photovault, edge]
+
+volumes:
+  pantry-db:
+  pantry-uploads:
+  ollama-models:
+  photovault-db:
+  photovault-redis:
+  photovault-media:
+  photovault-thumbs:
+  photovault-models:
+
+networks:
+  # External so each app's own compose file can also join it, letting an app be
+  # developed standalone and still sit behind this proxy.
+  edge:
+    name: edge
+    external: true
+
+  # PhotoVault's internals. Kept off "edge" so its database, Redis and workers
+  # cannot be reached through the proxy even by mistake.
+  photovault:

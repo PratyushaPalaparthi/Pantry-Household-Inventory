@@ -1,0 +1,6 @@
+.env
+authelia/db.sqlite3
+authelia/notification.txt
+authelia/users.yml
+traefik/certs/
+apps/

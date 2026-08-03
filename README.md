@@ -2,6 +2,30 @@
 
 A self-hosted, single-user household inventory app: track what's in your home, get shopping lists generated from low-stock items, scan receipts to log prices automatically, scan barcodes to add items, and ask it things like "what's low in the kitchen" in plain English.
 
+
+## This repository holds three things
+
+The Pantry app lives at the root. Two more directories sit alongside it because
+they are deployed together:
+
+| Path | What it is |
+| --- | --- |
+| `/` | Pantry — the household inventory app |
+| `homelab/` | The shared front door: one entry point, one login, one home page for every app |
+| `photovault/` | PhotoVault — photo library with search and background processing |
+
+To run everything together, see [homelab/README.md](homelab/README.md):
+
+```bash
+cd homelab
+./adduser.sh <username> <email>
+./up.sh
+```
+
+Pantry still runs perfectly well on its own — see "Running locally" below. The
+single sign-on integration is opt-in via `TRUST_PROXY_AUTH`, so nothing about
+standalone use changed.
+
 ## Stack
 
 - **Next.js 14** (App Router, TypeScript) + Tailwind CSS
