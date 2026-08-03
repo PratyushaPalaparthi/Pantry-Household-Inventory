@@ -22,6 +22,13 @@ const IP_LIKE = /^[0-9a-fA-F:.]{3,45}$/;
  * our own infrastructure observed, which the client cannot influence.
  */
 export function clientIpFrom(headers: Headers): string {
+  // Cloudflare sets this to the real client address and overwrites anything the
+  // caller sent, so behind a Cloudflare Tunnel it is more trustworthy than
+  // counting X-Forwarded-For hops — and it does not shift if the number of
+  // proxies in front ever changes.
+  const cloudflare = headers.get("cf-connecting-ip")?.trim();
+  if (cloudflare && IP_LIKE.test(cloudflare)) return cloudflare;
+
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
     const hops = forwarded
