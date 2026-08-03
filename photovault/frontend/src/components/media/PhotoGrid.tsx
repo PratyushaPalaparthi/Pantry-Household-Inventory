@@ -55,7 +55,7 @@ export default function PhotoGrid({ media, onFavoriteToggle, selectable = true }
           key={item.id}
           className={clsx(
             'relative group cursor-pointer overflow-hidden rounded-xl bg-dark-100 dark:bg-dark-800 aspect-square border border-white/70 dark:border-dark-700 transition-all duration-300',
-            isSelected(item.id) && 'ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-dark-900 shadow-[0_20px_40px_-28px_rgba(8,145,178,0.65)]'
+            isSelected(item.id) && 'ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-dark-900 shadow-[0_20px_40px_-28px_rgba(47,122,79,0.65)]'
           )}
           onClick={(e) => handleClick(item, e)}
         >

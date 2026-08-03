@@ -66,7 +66,7 @@
   }
 
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-[0_10px_24px_-16px_rgba(8,145,178,0.9)];
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-[0_10px_24px_-16px_rgba(47,122,79,0.9)];
   }
 
   .btn-secondary {
@@ -90,7 +90,7 @@
   }
 
   .glass-card {
-    @apply bg-white/70 dark:bg-dark-800/65 backdrop-blur-xl border border-white/75 dark:border-dark-700/60 shadow-[0_20px_55px_-36px_rgba(8,145,178,0.45)] rounded-2xl;
+    @apply bg-white/70 dark:bg-dark-800/65 backdrop-blur-xl border border-white/75 dark:border-dark-700/60 shadow-[0_20px_55px_-36px_rgba(47,122,79,0.45)] rounded-2xl;
   }
 
   .page-title {
@@ -106,7 +106,9 @@
   }
 
   .sidebar-item-active {
-    @apply bg-primary-100/70 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 shadow-[inset_0_0_0_1px_rgba(8,145,178,0.35)];
+    /* Same treatment as the portal's active nav link: a soft brand-tinted
+       pill with brand-coloured text, rather than an inset ring. */
+    @apply bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300;
   }
 }
 

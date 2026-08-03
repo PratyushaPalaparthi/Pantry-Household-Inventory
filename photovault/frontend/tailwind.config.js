@@ -25,18 +25,23 @@ export default {
             950: '#0d2317',
           },
         dark: {
-          50: '#f8fafc',
-          100: '#e6ecf3',
-          200: '#cfd8e4',
-          300: '#a8b4c6',
-          400: '#77869e',
-          500: '#55647d',
-          600: '#3c4b63',
-          700: '#2a364b',
-          800: '#1d2738',
-          900: '#131a28',
-          950: '#0a0f19',
-        }
+            // The neutral scale, mapped onto the same tokens as the portal's
+            // theme.css. It was a cool blue-grey, and since almost every
+            // surface, border and label in this app uses it, that single scale
+            // was what made the app read as a different product even after the
+            // accent colour matched.
+            50: '#f7f8f5',
+            100: '#eceee8',
+            200: '#e0e5db',
+            300: '#c3cbbd',
+            400: '#a3ae9b',
+            500: '#8f9a88',
+            600: '#6b7566',
+            700: '#4a5246',
+            800: '#2b3027',
+            900: '#1a1d18',
+            950: '#12140f',
+          }
       },
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
