@@ -35,6 +35,26 @@ access_control:
     - domain: "auth.mygatewaylabs.com"
       policy: bypass
 
+    # Home-screen install assets, allowed through unauthenticated.
+    #
+    # iOS fetches the manifest and touch icon to decide the app's name and
+    # whether it opens standalone, and it does not always send the session
+    # cookie when doing so. Behind the login wall those requests redirect, and
+    # the result installs as a plain Safari shortcut instead of an app.
+    #
+    # Safe to expose: an icon and a JSON file naming the app. No data.
+    - domain:
+        - "mygatewaylabs.com"
+        - "pantry.mygatewaylabs.com"
+        - "photos.mygatewaylabs.com"
+      resources:
+        - "^/manifest\\.json$"
+        - "^/icons/.*"
+        - "^/favicon\\.ico$"
+        - "^/apple-touch-icon.*"
+        - "^/sw\\.js$"
+      policy: bypass
+
     - domain:
         - "mygatewaylabs.com"
         - "pantry.mygatewaylabs.com"
