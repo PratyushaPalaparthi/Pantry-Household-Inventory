@@ -92,7 +92,12 @@ export function NavBar({ signedIn, portalUrl }: { signedIn: boolean; portalUrl: 
 
       <nav
         className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t py-2 backdrop-blur md:hidden"
-        style={{ background: "color-mix(in srgb, var(--surface) 92%, transparent)", borderColor: "var(--border)" }}
+        style={{
+          background: "color-mix(in srgb, var(--surface) 92%, transparent)",
+          borderColor: "var(--border)",
+          // Clears the iPhone home indicator; zero everywhere else.
+          paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))",
+        }}
       >
         {portalUrl && (
           <a

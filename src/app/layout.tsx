@@ -48,6 +48,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  // Lets the page extend under the notch, which is what makes
+  // env(safe-area-inset-*) meaningful — without it the mobile tab bar sits
+  // above a blank band on a modern iPhone.
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({
