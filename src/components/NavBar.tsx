@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
@@ -11,6 +12,7 @@ import {
   ScanLine,
   Settings,
   LogOut,
+  Home,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -27,6 +29,18 @@ export function NavBar() {
 
   if (status !== "authenticated" || !session) return null;
 
+  // Derived from the hostname rather than an env var: NEXT_PUBLIC_* values are
+  // inlined at build time, so a runtime setting never reaches the browser and
+  // the link silently disappears. Every app is a subdomain of the launcher, so
+  // dropping the first label gets there — and when there is no parent domain
+  // (plain localhost during development) nothing is shown.
+  const [portalUrl, setPortalUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const parts = window.location.hostname.split(".");
+    if (parts.length < 2) return;
+    setPortalUrl(`${window.location.protocol}//${parts.slice(1).join(".")}`);
+  }, []);
+
   return (
     <>
       <header
@@ -34,9 +48,27 @@ export function NavBar() {
         style={{ background: "color-mix(in srgb, var(--surface) 90%, transparent)", borderColor: "var(--border)" }}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <Link href="/" className="flex items-center gap-2 text-lg font-semibold">
-            <span className="text-xl">🏠</span> Pantry
-          </Link>
+          <div className="flex items-center gap-3">
+            {/* When this app is one of several on a shared domain, there has to
+                be a way back to the launcher from any page — otherwise the only
+                exit is the browser's back button. Rendered only when
+                NEXT_PUBLIC_PORTAL_URL is set, so running standalone is
+                unchanged. */}
+            {portalUrl && (
+              <a
+                href={portalUrl}
+                className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm transition-colors"
+                style={{ color: "var(--muted)" }}
+                aria-label="Back to all apps"
+              >
+                <Home size={16} />
+                <span className="hidden lg:inline">All apps</span>
+              </a>
+            )}
+            <Link href="/" className="flex items-center gap-2 text-lg font-semibold">
+              <span className="text-xl">🏠</span> Pantry
+            </Link>
+          </div>
           <nav className="flex items-center gap-1">
             {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
               const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -71,6 +103,17 @@ export function NavBar() {
         className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t py-2 backdrop-blur md:hidden"
         style={{ background: "color-mix(in srgb, var(--surface) 92%, transparent)", borderColor: "var(--border)" }}
       >
+        {portalUrl && (
+          <a
+            href={portalUrl}
+            className="flex flex-col items-center gap-0.5 rounded-lg px-2 py-1 text-[11px] font-medium"
+            style={{ color: "var(--muted)" }}
+            aria-label="Back to all apps"
+          >
+            <Home size={20} />
+            Apps
+          </a>
+        )}
         {[...NAV_ITEMS, { href: "/settings", label: "Settings", icon: Settings }].map(
           ({ href, label, icon: Icon }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
