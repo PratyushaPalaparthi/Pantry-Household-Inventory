@@ -203,6 +203,10 @@ services:
       EMAIL_VERIFICATION_REQUIRED: "false"
       LOCAL_STORAGE_PATH: /media
       NAS_MOUNT_PATH: /nas
+      # Accept the identity Authelia already established, so there is one login
+      # for the whole site. Safe only because this service publishes no port and
+      # sits on a private network reachable solely through the proxy.
+      TRUST_PROXY_AUTH: "true"
     volumes: &photovault-vols
       - photovault-media:/media
       - photovault-thumbs:/thumbnails
@@ -221,6 +225,15 @@ services:
     environment: *photovault-env
     volumes: *photovault-vols
     networks: [photovault]
+    healthcheck:
+      # The backend image's healthcheck curls localhost:8000, but a Celery
+      # worker serves no HTTP — it would report unhealthy forever while working
+      # perfectly. Ask Celery itself instead.
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   photovault-beat:
     build: ./apps/photovault/backend
@@ -230,6 +243,14 @@ services:
     environment: *photovault-env
     volumes: *photovault-vols
     networks: [photovault]
+    healthcheck:
+      # Beat is a scheduler with no HTTP endpoint and no queue to ping, so the
+      # meaningful check is simply that its process is alive.
+      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   photovault-frontend:
     build: ./apps/photovault/frontend

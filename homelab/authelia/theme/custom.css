@@ -1,0 +1,94 @@
+/*
+ * Restyles Authelia's login page to match the rest of the site.
+ *
+ * The login page is the first thing anyone sees; out of the box it looks
+ * nothing like the apps behind it, which makes the whole thing feel like a
+ * chain of unrelated tools rather than one product.
+ *
+ * Authelia's UI is Material-UI, so these target its structural classes. The
+ * generated class names carry build hashes and change between releases; the
+ * MuiXxx-root names do not.
+ */
+
+:root {
+  --bg: #12140f;
+  --surface: #1a1d18;
+  --border: #2b3027;
+  --text: #edf0e8;
+  --muted: #8f9a88;
+  --brand: #6cc08a;
+  --brand-strong: #2f7a4f;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f7f8f5;
+    --surface: #ffffff;
+    --border: #e0e5db;
+    --text: #1b1f18;
+    --muted: #5f6b59;
+    --brand: #2f7a4f;
+    --brand-strong: #245f3e;
+  }
+}
+
+body, #root {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !important;
+}
+
+.MuiPaper-root {
+  background: var(--surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 0.9rem !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.28), 0 8px 24px rgb(0 0 0 / 0.16) !important;
+}
+
+.MuiTypography-root { color: var(--text) !important; }
+.MuiTypography-colorSecondary, .MuiTypography-caption { color: var(--muted) !important; }
+
+.MuiOutlinedInput-root {
+  background: var(--bg) !important;
+  border-radius: 0.55rem !important;
+}
+.MuiOutlinedInput-notchedOutline { border-color: var(--border) !important; }
+.MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline,
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--brand) !important;
+  border-width: 1px !important;
+}
+.MuiInputBase-input { color: var(--text) !important; }
+.MuiInputLabel-root { color: var(--muted) !important; }
+.MuiInputLabel-root.Mui-focused { color: var(--brand) !important; }
+
+.MuiButton-contained, .MuiButton-containedPrimary {
+  background: var(--brand) !important;
+  color: #08120c !important;
+  border-radius: 0.55rem !important;
+  box-shadow: none !important;
+  text-transform: none !important;
+  font-weight: 500 !important;
+  font-size: 0.95rem !important;
+  padding: 0.6rem 1rem !important;
+}
+.MuiButton-contained:hover, .MuiButton-containedPrimary:hover {
+  background: var(--brand-strong) !important;
+  color: #fff !important;
+}
+
+/* The default LOGOUT action renders bright pink, which belongs to no palette
+   used anywhere else on the site. */
+a, .MuiLink-root, .MuiButton-text {
+  color: var(--brand) !important;
+  text-transform: none !important;
+}
+
+.MuiCheckbox-root.Mui-checked { color: var(--brand) !important; }
+
+/* The stock avatar is a grey silhouette that reads as a broken image. */
+.MuiAvatar-root {
+  background: var(--brand-strong) !important;
+  color: #fff !important;
+}

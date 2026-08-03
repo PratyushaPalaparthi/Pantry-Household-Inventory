@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 
 import { useAuthStore } from '@/store/authStore';
+import { useSsoBootstrap } from '@/hooks/useSsoBootstrap';
 import { authApi } from '@/services/api';
 
 // Layouts
@@ -47,7 +48,11 @@ const queryClient = new QueryClient({
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
   
-  if (isLoading) {
+  // Behind single sign-on the caller is already authenticated; this trades
+  // that identity for a session so no second login is ever shown.
+  const ssoSettled = useSsoBootstrap();
+
+  if (isLoading || !ssoSettled) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="glass-card px-8 py-6 flex items-center gap-3">

@@ -1,8 +1,9 @@
 """
 Authentication routes.
 """
+import os
 from datetime import datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, Request, status, BackgroundTasks
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -335,3 +336,55 @@ async def logout(
     """Logout (client should discard tokens)."""
     # In a production system, you might want to blacklist the token
     return {"message": "Logged out successfully"}
+
+
+@router.post("/sso-session", response_model=TokenResponse)
+async def sso_session(request: Request, db: AsyncSession = Depends(get_db)):
+    """Exchange an upstream single sign-on identity for a normal session.
+
+    When this app sits behind a proxy that already authenticated the caller
+    (Authelia, Cloudflare Access, oauth2-proxy), showing a second login form is
+    pointless friction. The proxy forwards the verified address on Remote-Email;
+    this hands back the same tokens the password flow would.
+
+    SECURITY: Remote-Email is trustworthy only because the proxy overwrites it
+    on every request, which holds while this service is unreachable except
+    through that proxy. It publishes no port and sits on a private network, so
+    that holds here. If it is ever exposed directly, TRUST_PROXY_AUTH must be
+    turned off, or anyone could name themselves any user.
+    """
+    if os.getenv("TRUST_PROXY_AUTH", "").lower() != "true":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    email = (request.headers.get("remote-email") or "").strip().lower()
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No single sign-on identity was provided",
+        )
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        # First arrival through the proxy. The proxy owns authentication, so
+        # this account gets a password hash nothing can match rather than an
+        # empty one, which a future bug might treat as valid. Active and
+        # approved immediately: the proxy already vetted them.
+        user = User(
+            email=email,
+            hashed_password=f"sso-only:{uuid4()}",
+            full_name=request.headers.get("remote-name") or email.split("@")[0],
+            is_active=True,
+            is_approved=True,
+            is_verified=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    return TokenResponse(
+        access_token=create_access_token(str(user.id), user.role),
+        refresh_token=create_refresh_token(str(user.id)),
+        expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
