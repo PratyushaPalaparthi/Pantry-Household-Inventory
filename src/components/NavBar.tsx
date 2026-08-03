@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
@@ -23,23 +22,15 @@ const NAV_ITEMS = [
   { href: "/scan", label: "Scan", icon: ScanLine },
 ];
 
-export function NavBar() {
-  const { data: session, status } = useSession();
+export function NavBar({ signedIn, portalUrl }: { signedIn: boolean; portalUrl: string | null }) {
+  // Authentication is decided on the server and passed in. Asking NextAuth
+  // here was the bug: behind the single sign-on proxy there is no NextAuth
+  // session, so the whole navigation silently vanished and only the dashboard
+  // body was reachable.
+  const { data: session } = useSession();
   const pathname = usePathname();
 
-  if (status !== "authenticated" || !session) return null;
-
-  // Derived from the hostname rather than an env var: NEXT_PUBLIC_* values are
-  // inlined at build time, so a runtime setting never reaches the browser and
-  // the link silently disappears. Every app is a subdomain of the launcher, so
-  // dropping the first label gets there — and when there is no parent domain
-  // (plain localhost during development) nothing is shown.
-  const [portalUrl, setPortalUrl] = useState<string | null>(null);
-  useEffect(() => {
-    const parts = window.location.hostname.split(".");
-    if (parts.length < 2) return;
-    setPortalUrl(`${window.location.protocol}//${parts.slice(1).join(".")}`);
-  }, []);
+  if (!signedIn) return null;
 
   return (
     <>

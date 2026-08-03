@@ -3,6 +3,8 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { NavBar } from "@/components/NavBar";
+import { headers } from "next/headers";
+import { getUserId } from "@/lib/session";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 const geistSans = localFont({
@@ -48,17 +50,26 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const userId = await getUserId();
+
+  // Every app is a subdomain of the launcher, so dropping the first label of
+  // the request host points back at it. Computed here rather than in the client
+  // so the link is in the first paint instead of appearing after hydration.
+  const host = (await headers()).get("host") ?? "";
+  const labels = host.split(":")[0].split(".");
+  const portalUrl = labels.length > 1 ? `//${labels.slice(1).join(".")}` : null;
+
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
           <ServiceWorkerRegister />
-          <NavBar />
+          <NavBar signedIn={Boolean(userId)} portalUrl={portalUrl} />
           <main className="mx-auto max-w-6xl px-4 pb-24 pt-4 md:px-6 md:pb-10 md:pt-8">{children}</main>
         </Providers>
       </body>

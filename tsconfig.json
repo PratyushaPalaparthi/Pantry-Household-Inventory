@@ -36,6 +36,11 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    // Sibling apps that live in this repository for deployment only.
+    // They have their own toolchains; typechecking them from here just
+    // reports missing modules that were never this project's concern.
+    "photovault",
+    "homelab"
   ]
 }
