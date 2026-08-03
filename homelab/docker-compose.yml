@@ -18,12 +18,28 @@ services:
       - "--providers.file.directory=/etc/traefik/dynamic"
       - "--providers.file.watch=true"
       - "--entrypoints.web.address=:80"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      # Trust the X-Forwarded-* headers arriving on this entrypoint. Without
+      # this Traefik reports the scheme as "http", and Authelia refuses the
+      # request outright rather than issue a session cookie over what it
+      # believes is an insecure connection — a 400 on every protected route.
+      #
+      # Safe because :80 is not published to the host below: the only thing that
+      # can reach it is cloudflared, on the internal Docker network.
+      - "--entrypoints.web.forwardedHeaders.insecure=true"
+      # No forced HTTP->HTTPS redirect. Behind a Cloudflare Tunnel the public
+      # half is already encrypted and cloudflared reaches Traefik over the
+      # Docker network, so redirecting that internal hop to HTTPS only produced
+      # a loop — or a 525, if the tunnel was set to speak TLS to a certificate
+      # meant for local use.
       - "--entrypoints.websecure.address=:443"
+      # TLS is configured on the entrypoint rather than per router, so the
+      # same routers can answer plain HTTP on :80 for the tunnel.
+      - "--entrypoints.websecure.http.tls=true"
       - "--api.dashboard=false"
     ports:
-      - "80:80"
+      # :80 is deliberately NOT published. cloudflared reaches Traefik over the
+      # Docker network, so exposing it on the host would only create a path that
+      # bypasses TLS and lets a caller on the LAN forge forwarded headers.
       - "443:443"
     volumes:
       - ./traefik/dynamic:/etc/traefik/dynamic:ro

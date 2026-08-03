@@ -32,13 +32,13 @@ access_control:
   # matching rule wins — so the bypass for Authelia's own endpoints comes first.
   default_policy: deny
   rules:
-    - domain: "auth.home.localhost"
+    - domain: "auth.mygatewaylabs.com"
       policy: bypass
 
     - domain:
-        - "home.localhost"
-        - "pantry.home.localhost"
-        - "photos.home.localhost"
+        - "mygatewaylabs.com"
+        - "pantry.mygatewaylabs.com"
+        - "photos.mygatewaylabs.com"
       policy: one_factor
 
 session:
@@ -46,9 +46,9 @@ session:
   # in once at any subdomain carries across all of them.
   cookies:
     - name: authelia_session
-      domain: home.localhost
-      authelia_url: https://auth.home.localhost
-      default_redirection_url: https://home.localhost
+      domain: mygatewaylabs.com
+      authelia_url: https://auth.mygatewaylabs.com
+      default_redirection_url: https://mygatewaylabs.com
       expiration: 12h
       inactivity: 2h
       remember_me: 1M

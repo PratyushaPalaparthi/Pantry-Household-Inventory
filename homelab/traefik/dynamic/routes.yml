@@ -39,41 +39,36 @@ http:
     # Authelia's own login page must NOT sit behind the auth check, or signing
     # in would require already being signed in.
     authelia:
-      rule: "Host(`auth.home.localhost`)"
-      entryPoints: [websecure]
+      rule: "Host(`auth.mygatewaylabs.com`)"
+      entryPoints: [web, websecure]
       service: authelia
-      tls: {}
 
     # Higher priority than the portal router so these paths win. Deliberately
     # NOT behind the authelia middleware: /api/verify IS the session check, and
     # /logout must work even when the session is already gone.
     portal-auth:
-      rule: "Host(`home.localhost`) && (PathPrefix(`/api/`) || PathPrefix(`/logout`))"
+      rule: "Host(`mygatewaylabs.com`) && (PathPrefix(`/api/`) || PathPrefix(`/logout`))"
       priority: 100
-      entryPoints: [websecure]
+      entryPoints: [web, websecure]
       service: authelia
-      tls: {}
 
     portal:
-      rule: "Host(`home.localhost`)"
-      entryPoints: [websecure]
+      rule: "Host(`mygatewaylabs.com`)"
+      entryPoints: [web, websecure]
       middlewares: [authelia, security-headers]
       service: portal
-      tls: {}
 
     pantry:
-      rule: "Host(`pantry.home.localhost`)"
-      entryPoints: [websecure]
+      rule: "Host(`pantry.mygatewaylabs.com`)"
+      entryPoints: [web, websecure]
       middlewares: [authelia, security-headers]
       service: pantry
-      tls: {}
 
     photos:
-      rule: "Host(`photos.home.localhost`)"
-      entryPoints: [websecure]
+      rule: "Host(`photos.mygatewaylabs.com`)"
+      entryPoints: [web, websecure]
       middlewares: [authelia, security-headers]
       service: photos
-      tls: {}
 
 
   services:
